@@ -1,14 +1,13 @@
 # Orange Pi 5B Setup — Progress Tracker
 
-## Phase 1: Flash Ubuntu 24.04 Desktop (via SD card)
+## Phase 1: Flash Ubuntu 24.04 Desktop
 - [x] Download Ubuntu 24.04 desktop image for OPi5B
 - [x] Decompress .img.xz -> .img
 - [x] Wipe SD card (wipefs + sgdisk + dd zero)
 - [x] Flash image to SD card (dd, 7.4GB, verified)
-- [ ] Boot OPi5B from SD card
-- [ ] Complete Ubuntu initial setup (user, language, timezone)
-- [ ] Flash eMMC from running SD card OS
-- [ ] Remove SD, confirm eMMC boot
+- [x] Flash eMMC from SD card
+- [ ] First boot from eMMC — complete Ubuntu setup wizard
+- [ ] Clone this repo + install Claude Code on the board
 
 ## Phase 2: System Setup
 - [ ] apt update/upgrade

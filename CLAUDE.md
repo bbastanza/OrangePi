@@ -28,29 +28,38 @@ Setup and configuration project for an **Orange Pi 5B** single-board computer. G
 
 ## Current Status
 
-- **SD card flashed** with Ubuntu 24.04 Desktop (verified, 7.4GB, partition: `desktop-rootfs`)
-- Next: boot OPi5B from SD card, complete Ubuntu setup, flash eMMC
+- **Ubuntu 24.04 Desktop installed on eMMC** — image flashed to SD, then written to onboard eMMC
+- **About to first-boot from eMMC** on the Orange Pi 5B
+- Next: complete Ubuntu setup wizard, then proceed to Phase 2 (system setup)
 - See TODO.md for full checklist
 
 ## If Running on the Orange Pi 5B
 
 This section is for Claude Code sessions running directly on the board after Ubuntu is installed.
 
-### Immediate Next Steps (after first boot)
+### Immediate Next Steps (first boot from eMMC)
 
-1. Complete Ubuntu initial setup wizard (user, language, timezone)
-2. Flash eMMC from running SD card:
+1. Complete Ubuntu initial setup wizard (user, language, timezone) if not already done
+2. Set up git + clone this repo:
    ```bash
-   # Find eMMC device (likely /dev/mmcblk0 if booted from SD, or /dev/mmcblk1)
-   lsblk
-   # The eMMC is the ~64GB device, SD card is the ~128GB device
-   # Wipe and flash:
-   sudo wipefs -a /dev/mmcblkX
-   sudo dd if=/dev/mmcblkY of=/dev/mmcblkX bs=4M status=progress
-   # Where X = eMMC device, Y = SD card device (copy running OS to eMMC)
-   sudo sync
+   sudo apt install -y git
+   git clone https://github.com/bbastanza/OrangePi.git ~/Projects/OrangePi
    ```
-3. Power off, remove SD card, boot from eMMC
+3. Set up push access (no password):
+   ```bash
+   # Option A: gh CLI (easiest)
+   sudo apt install -y gh
+   gh auth login
+   # Option B: SSH key
+   ssh-keygen -t ed25519
+   # Add ~/.ssh/id_ed25519.pub to GitHub -> Settings -> SSH Keys
+   git remote set-url origin git@github.com:bbastanza/OrangePi.git
+   ```
+4. Install Claude Code:
+   ```bash
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
+5. Proceed to Phase 2 (system setup) below
 
 ### Phase 2: System Setup
 ```bash
