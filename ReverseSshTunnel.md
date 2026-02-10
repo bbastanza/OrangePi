@@ -1,7 +1,7 @@
 Content is user-generated and unverified.
 Reverse SSH Tunnel Implementation — Instructions for Claude
 
-You are helping me set up a secure reverse SSH tunnel so I can access my Orange Pi (running Ubuntu ARM) from anywhere using the Terminus Android SSH app. The relay server is my existing Linode VPS, which already runs an Angular SSR application. We are dual-purposing this Linode.
+You are helping me set up a secure reverse SSH tunnel so I can access my Orange Pi (running Ubuntu ARM) from anywhere using the Terminus Android SSH app. The relay server is my existing Linode VPS (Fedora 43 Server), which already runs an Angular SSR application. We are dual-purposing this Linode.
 
 Architecture overview:
 
@@ -74,33 +74,36 @@ sudo systemctl restart sshd
 
     CRITICAL: Do NOT close your current SSH session until you have verified you can still log in as your admin user in a separate terminal. If you lock yourself out of the Linode, recovery is painful.
 
-1.3 — Firewall (UFW) on the Linode
+1.3 — Firewall (firewalld) on the Linode
 
-The Linode likely already has ports open for the web app. Ensure the following:
+The Linode runs Fedora 43, which uses firewalld (not UFW). The firewall is already active with the FedoraServer zone. Verify and tighten:
 bash
 
-# Check existing rules first
-sudo ufw status verbose
+# Check existing rules
+sudo firewall-cmd --list-all
 
-# Ensure SSH is allowed (should already be)
-sudo ufw allow 22/tcp
+# Ensure ssh, http, https are allowed (should already be)
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
 
-# Ensure web traffic is allowed (should already be)
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+# Remove cockpit if not in use (web admin on port 9090 — unnecessary attack surface)
+sudo firewall-cmd --permanent --remove-service=cockpit
 
-# Default deny incoming (should already be set)
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
+# Remove dhcpv6-client if not needed
+sudo firewall-cmd --permanent --remove-service=dhcpv6-client
 
-# Enable if not already
-sudo ufw enable
+# Reload to apply changes
+sudo firewall-cmd --reload
+
+# Verify final state
+sudo firewall-cmd --list-all
 
 No new ports need to be opened. The reverse tunnel binds to localhost:19222 on the Linode — it is not externally accessible. You will connect to the Pi by first SSH-ing into the Linode on port 22, then hopping to localhost:19222.
 1.4 — Install and Configure fail2ban on the Linode
 bash
 
-sudo apt update && sudo apt install -y fail2ban
+sudo dnf install -y fail2ban
 
 Create /etc/fail2ban/jail.local:
 ini
@@ -115,22 +118,40 @@ backend  = systemd
 enabled  = true
 port     = 22
 filter   = sshd
-logpath  = /var/log/auth.log
+logpath  = %(sshd_log)s
 maxretry = 3
 bantime  = 3600
+
+    Note: On Fedora, use %(sshd_log)s which resolves to the systemd journal automatically.
 
 bash
 
 sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 
-1.5 — Enable Unattended Security Updates on the Linode
+1.5 — Enable Automatic Security Updates on the Linode
+
+Fedora uses dnf-automatic instead of unattended-upgrades:
 bash
 
-sudo apt install -y unattended-upgrades
-sudo dpkg-reconfigure -plow unattended-upgrades   # Select "Yes"
+sudo dnf install -y dnf-automatic
 
-Verify /etc/apt/apt.conf.d/50unattended-upgrades has security updates enabled (it should by default on Ubuntu).
+Edit /etc/dnf/automatic.conf:
+ini
+
+[commands]
+apply_updates = yes
+upgrade_type = security
+
+bash
+
+sudo systemctl enable dnf-automatic.timer
+sudo systemctl start dnf-automatic.timer
+
+Verify the timer is active:
+bash
+
+sudo systemctl status dnf-automatic.timer
 PART 2: ORANGE PI CONFIGURATION
 
 Perform all of the following on the Orange Pi running Ubuntu ARM.
@@ -417,11 +438,11 @@ Tunnel Isolation
     Match User tunneluser block restricts forwarding, TTY, and commands
     GatewayPorts no ensures tunnel binds to localhost only
     authorized_keys for tunneluser has no-pty,command="/bin/false" prefix
-    Tunnel port (19222) is NOT exposed in UFW — it's localhost only
+    Tunnel port (19222) is NOT exposed in firewall — it's localhost only
 
 Network
 
-    UFW enabled on both machines with default deny incoming
+    Firewall enabled on both machines (firewalld on Linode, UFW on Orange Pi) with default deny incoming
     fail2ban running on both machines
     Orange Pi SSH runs on non-standard port (2222)
     No ports forwarded on home router
